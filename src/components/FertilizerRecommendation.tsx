@@ -1,0 +1,587 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Mic, MicOff } from 'lucide-react'; 
+
+const SpeechRecognition =
+  window.SpeechRecognition || (window as any).webkitSpeechRecognition;
+let recognition: SpeechRecognition | null = null;
+
+if (SpeechRecognition) {
+  recognition = new SpeechRecognition();
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  
+}
+
+const teluguNumeralsMap: { [key: string]: string } = {
+  '౦': '0', '౧': '1', '౨': '2', '౩': '3', '౪': '4',
+  '౫': '5', '౬': '6', '౭': '7', '౮': '8', '౯': '9'
+};
+
+const spokenWordsMap: { [key: string]: string } = {
+  'సున్నా': '0', 'ఒకటి': '1', 'ఒక': '1', 'రెండు': '2', 'మూడు': '3', 'నాలుగు': '4',
+  'ఐదు': '5', 'ఆరు': '6', 'ఏడు': '7', 'ఎనిమిది': '8', 'తొమ్మిది': '9', 'పది': '10', 'వంద': '100',
+  'జీరో': '0', 'వన్': '1', 'టు': '2', 'టూ': '2', 'త్రీ': '3', 'ఫోర్': '4', 'ఫైవ్': '5',
+  'సిక్స్': '6', 'సెక్స్' : '6', 'సెవెన్': '7', 'ఎయిట్': '8', 'నైన్': '9', 'టెన్': '10', 'హండ్రెడ్': '100',
+  'zero': '0', 'one': '1', 'two': '2', 'three': '3', 'four': '4', 'five': '5', 'six': '6',
+  'seven': '7', 'eight': '8', 'nine': '9', 'ten': '10', 'hundred': '100',
+};
+
+function convertSpokenNumberToEnglish(transcript: string): string {
+  let result = transcript.trim().toLowerCase();
+
+  for (const teluguNum in teluguNumeralsMap) {
+    result = result.replace(new RegExp(teluguNum, 'g'), teluguNumeralsMap[teluguNum]);
+  }
+
+  const sortedWords = Object.keys(spokenWordsMap).sort((a, b) => b.length - a.length);
+  for (const word of sortedWords) {
+     result = result.replace(new RegExp(word, 'gi'), spokenWordsMap[word]);
+  }
+
+   result = result.replace(/[^0-9.]/g, '');
+
+  return result;
+}
+
+const translations = {
+  en: {
+    title: "Fertilizer Recommendation",
+    languageLabel: "Language",
+    soilTypeLabel: "Soil Type",
+    cropTypeLabel: "Crop Type",
+    temperatureLabel: "Temperature",
+    temperatureUnit: "°C",
+    humidityLabel: "Humidity",
+    humidityUnit: "%",
+    moistureLabel: "Soil Moisture",
+    moistureUnit: "%",
+    nitrogenLabel: "Nitrogen (N)",
+    nitrogenUnit: "mg/kg",
+    phosphorousLabel: "Phosphorus (P)", 
+    phosphorousUnit: "mg/kg",
+    potassiumLabel: "Potassium (K)",
+    potassiumUnit: "mg/kg",
+    submitButton: "Get Recommendation",
+    loadingButton: "Getting Recommendation...",
+    listening: "Listening...",
+    errorPrefix: "Error",
+    recommendationPrefix: "Recommended Fertilizer",
+    allFieldsRequiredError: "All fields are required.",
+    invalidNumberError: (field: string, value: string) => `Invalid number format for ${field}: "${value}". Please enter a valid number.`,
+    micNotSupportedError: "Microphone input (Speech Recognition) is not supported by your browser.",
+    micPermissionError: "Microphone access denied. Please allow access.",
+    micNoSpeechError: "No speech detected. Please try again.",
+    micNetworkError: "Network error during speech recognition.",
+    micLangUnsupportedError: (lang: string) => `The selected language (${lang}) is not supported by your browser's speech recognition.`,
+    micGenericError: (error: string) => `Mic error: ${error}`,
+    micStartError: "Could not start microphone. Check permissions.",
+    conversionError: (transcript: string) => `Could not convert "${transcript}" to a valid number.`,
+    unexpectedResponseError: "Received an unexpected response from the server.",
+    fetchErrorPrefix: "Failed to get recommendation",
+    fetchNetworkError: "Network error: Could not connect to the server. Is it running?",
+    fetchGenericError: "An unexpected error occurred. Please try again later.",
+    selectSoilTypePlaceholder: "Select Soil Type",
+    selectCropTypePlaceholder: "Select Crop Type",
+  },
+  te: {
+    title: "ఎరువుల సిఫార్సు",
+    languageLabel: "భాష",
+    soilTypeLabel: "నేల రకం",
+    cropTypeLabel: "పంట రకం",
+    temperatureLabel: "ఉష్ణోగ్రత",
+    temperatureUnit: "°C",
+    humidityLabel: "తేమ",
+    humidityUnit: "%",
+    moistureLabel: "నేల తేమ",
+    moistureUnit: "%",
+    nitrogenLabel: "నత్రజని (N)",
+    nitrogenUnit: "mg/kg",
+    phosphorousLabel: "భాస్వరం (P)",
+    phosphorousUnit: "mg/kg",
+    potassiumLabel: "పొటాషియం (K)",
+    potassiumUnit: "mg/kg",
+    submitButton: "సిఫార్సు పొందండి",
+    loadingButton: "సిఫార్సు పొందుతోంది...",
+    listening: "వినడం జరుగుతోంది...",
+    errorPrefix: "లోపం",
+    recommendationPrefix: "సిఫార్సు చేయబడిన ఎరువు",
+    allFieldsRequiredError: "అన్ని ఫీల్డ్‌లు అవసరం.",
+    invalidNumberError: (field: string, value: string) => `${field} కోసం చెల్లని సంఖ్య ఫార్మాట్: "${value}". దయచేసి చెల్లుబాటు అయ్యే సంఖ్యను నమోదు చేయండి.`,
+    micNotSupportedError: "మైక్రోఫోన్ ఇన్‌పుట్ (స్పీచ్ రికగ్నిషన్) మీ బ్రౌజర్ ద్వారా మద్దతు లేదు.",
+    micPermissionError: "మైక్రోఫోన్ యాక్సెస్ నిరాకరించబడింది. దయచేసి యాక్సెస్‌ను అనుమతించండి.",
+    micNoSpeechError: "ప్రసంగం కనుగొనబడలేదు. దయచేసి మళ్ళీ ప్రయత్నించండి.",
+    micNetworkError: "ప్రసంగ గుర్తింపు సమయంలో నెట్‌వర్క్ లోపం.",
+    micLangUnsupportedError: (lang: string) => `ఎంచుకున్న భాష (${lang}) మీ బ్రౌజర్ యొక్క ప్రసంగ గుర్తింపు ద్వారా మద్దతు లేదు.`,
+    micGenericError: (error: string) => `మైక్ లోపం: ${error}`,
+    micStartError: "మైక్రోఫోన్‌ను ప్రారంభించడంలో విఫలమయ్యారు. అనుమతులను తనిఖీ చేయండి.",
+    conversionError: (transcript: string) => `"${transcript}" ను చెల్లుబాటు అయ్యే సంఖ్యగా మార్చడంలో విఫలమయ్యారు.`,
+    unexpectedResponseError: "సర్వర్ నుండి ఊహించని ప్రతిస్పందన అందింది.",
+    fetchErrorPrefix: "సిఫార్సు పొందడంలో విఫలమయ్యారు",
+    fetchNetworkError: "నెట్‌వర్క్ లోపం: సర్వర్‌కు కనెక్ట్ చేయడంలో విఫలమయ్యారు. ఇది నడుస్తోందా?",
+    fetchGenericError: "ఊహించని లోపం సంభవించింది. దయచేసి మళ్ళీ ప్రయత్నించండి.",
+    selectSoilTypePlaceholder: "నేల రకాన్ని ఎంచుకోండి",
+    selectCropTypePlaceholder: "పంట రకాన్ని ఎంచుకోండి",
+
+    fertilizerNames: {
+        'urea': 'యూరియా',
+        'dap': 'డిఎపి (DAP)',
+        '14-35-14': '14-35-14', 
+        '28-28': '28-28',       
+        '17-17-17': '17-17-17',  
+        '20-20': '20-20',      
+        '10-26-26': '10-26-26',  
+    } as Record<string, string>,
+  }
+};
+
+const soilTypeOptions = [
+    { value: 'Sandy', enLabel: 'Sandy', teLabel: 'ఇసుక నేల' },
+    { value: 'Loamy', enLabel: 'Loamy', teLabel: 'లోమీ నేల' },
+    { value: 'Black', enLabel: 'Black', teLabel: 'నల్ల నేల' },
+    { value: 'Red', enLabel: 'Red', teLabel: 'ఎర్ర నేల' },
+    { value: 'Clayey', enLabel: 'Clayey', teLabel: 'బంకమట్టి నేల' },
+];
+
+const cropTypeOptions = [
+    { value: 'Maize', enLabel: 'Maize', teLabel: 'మొక్కజొన్న' },
+    { value: 'Sugarcane', enLabel: 'Sugarcane', teLabel: 'చెరకు' },
+    { value: 'Cotton', enLabel: 'Cotton', teLabel: 'పత్తి' },
+    { value: 'Tobacco', enLabel: 'Tobacco', teLabel: 'పొగాకు' },
+    { value: 'Paddy', enLabel: 'Paddy', teLabel: 'వరి' },
+    { value: 'Barley', enLabel: 'Barley', teLabel: 'బార్లీ' },
+    { value: 'Wheat', enLabel: 'Wheat', teLabel: 'గోధుమ' },
+    { value: 'Millets', enLabel: 'Millets', teLabel: 'చిరుధాన్యాలు' },
+    { value: 'Oil seeds', enLabel: 'Oil seeds', teLabel: 'నూనె గింజలు' },
+    { value: 'Pulses', enLabel: 'Pulses', teLabel: 'పప్పుధాన్యాలు' },
+    { value: 'Ground Nuts', enLabel: 'Ground Nuts', teLabel: 'వేరుశెనగ' },
+];
+
+interface FertilizerFormData {
+  soilType: string;
+  cropType: string;
+  moisture: string;
+  nitrogen: string;
+  phosphorous: string; 
+  potassium: string;
+  temperature: string;
+  humidity: string;
+}
+
+type NumericFieldName = 'temperature' | 'humidity' | 'moisture' | 'nitrogen' | 'potassium' | 'phosphorous';
+type LanguageKey = 'en' | 'te';
+
+interface ApiResponse {
+  fertilizer?: string;
+  error?: string;
+}
+
+
+function FertilizerRecommendation() {
+  const [formData, setFormData] = useState<FertilizerFormData>({
+    soilType: '', cropType: '', moisture: '', nitrogen: '',
+    phosphorous: '', potassium: '', temperature: '', humidity: ''
+  });
+  const [recommendation, setRecommendation] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [language, setLanguage] = useState<LanguageKey>('en'); 
+
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [recordingField, setRecordingField] = useState<NumericFieldName | null>(null);
+  const [micError, setMicError] = useState<string | null>(null);
+ 
+
+  const currentFieldRef = useRef<NumericFieldName | null>(null);
+  const currentLangRef = useRef<LanguageKey>(language); 
+
+  useEffect(() => {
+    currentLangRef.current = language;
+  }, [language]);
+
+  useEffect(() => {
+    if (!recognition) {
+      console.warn("Speech Recognition API not supported.");
+      
+      setMicError(translations[currentLangRef.current].micNotSupportedError);
+      return;
+    }
+
+
+    recognition.lang = language === 'te' ? 'te-IN' : 'en-US';
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const transcript = event.results[0][0].transcript;
+      const targetField = currentFieldRef.current;
+      const currentTranslations = translations[currentLangRef.current];
+
+      if (targetField) {
+        const convertedNumber = convertSpokenNumberToEnglish(transcript);
+        if (convertedNumber && !isNaN(parseFloat(convertedNumber))) {
+           setFormData(prevData => ({
+             ...prevData,
+             [targetField]: convertedNumber
+           }));
+           setMicError(null);
+        } else {
+            setMicError(currentTranslations.conversionError(transcript));
+        }
+      }
+      setIsRecording(false);
+      setRecordingField(null);
+      currentFieldRef.current = null;
+    };
+
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      console.error('Speech recognition error:', event.error);
+      const currentTranslations = translations[currentLangRef.current];
+      let errorMsg = currentTranslations.micGenericError(event.error);
+
+       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        errorMsg = currentTranslations.micPermissionError;
+      } else if (event.error === 'no-speech') {
+        errorMsg = currentTranslations.micNoSpeechError;
+      } else if (event.error === 'network') {
+        errorMsg = currentTranslations.micNetworkError;
+      } else if (event.error === 'language-not-supported') {
+         errorMsg = currentTranslations.micLangUnsupportedError(recognition?.lang || 'N/A');
+      }
+      setMicError(errorMsg);
+      setIsRecording(false);
+      setRecordingField(null);
+      currentFieldRef.current = null;
+    };
+
+    recognition.onend = () => {
+      if (currentFieldRef.current) {
+        setIsRecording(false);
+        setRecordingField(null);
+        currentFieldRef.current = null;
+      }
+    };
+
+    return () => {
+      if (recognition && isRecording) {
+        recognition.stop();
+      }
+    };
+  }, [language, isRecording]);
+
+  const handleMicClick = (fieldName: NumericFieldName) => {
+    if (!recognition) {
+      setMicError(translations[language].micNotSupportedError);
+      return;
+    }
+
+    if (isRecording) {
+      if (recordingField === fieldName) {
+        recognition.stop();
+        setIsRecording(false);
+        setRecordingField(null);
+        currentFieldRef.current = null;
+      }
+      return;
+    }
+
+    try {
+      setMicError(null);
+      setError(null);
+      setRecordingField(fieldName);
+      currentFieldRef.current = fieldName;
+      setIsRecording(true);
+      recognition.lang = language === 'te' ? 'te-IN' : 'en-US';
+      recognition.start();
+    } catch (err) {
+      console.error("Error starting recognition:", err);
+      setMicError(translations[language].micStartError);
+      setIsRecording(false);
+      setRecordingField(null);
+      currentFieldRef.current = null;
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isRecording && recognition) {
+        recognition.stop();
+    }
+
+    setIsLoading(true);
+    setError(null);
+    setRecommendation(null);
+    setMicError(null);
+
+    const currentTranslations = translations[language];
+    const formValues = Object.values(formData);
+    if (formValues.some(value => value === '')) {
+      setError(currentTranslations.allFieldsRequiredError);
+      setIsLoading(false);
+      return;
+    }
+
+    let payload: any; 
+    try {
+        payload = {
+            temperature: parseFloat(formData.temperature),
+            humidity: parseFloat(formData.humidity),
+            moisture: parseFloat(formData.moisture),
+            soil_type: formData.soilType, 
+            crop_type: formData.cropType,   
+            nitrogen: parseFloat(formData.nitrogen),
+            potassium: parseFloat(formData.potassium),
+            phosphorous: parseFloat(formData.phosphorous) 
+        };
+
+      
+        const numericKeys: NumericFieldName[] = ['temperature', 'humidity', 'moisture', 'nitrogen', 'potassium', 'phosphorous'];
+        for (const key of numericKeys) {
+            if (isNaN(payload[key])) {
+                
+                 const fieldLabelKey = `${key}Label` as keyof typeof currentTranslations;
+                 const fieldLabel = typeof currentTranslations[fieldLabelKey] === 'string'
+                                     ? currentTranslations[fieldLabelKey]
+                                     : key;
+                 const invalidValue = formData[key];
+                 setError(currentTranslations.invalidNumberError(String(fieldLabel), invalidValue));
+                 throw new Error(`Invalid number format for ${key}`);
+            }
+        }
+
+    } catch (conversionError: any) {
+        setIsLoading(false);
+        return; 
+    }
+
+
+    try {
+      const response = await fetch('http://localhost:5002/predict', { 
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result: ApiResponse = await response.json();
+
+      if (response.ok && result.fertilizer) {
+        
+        setRecommendation(result.fertilizer.toLowerCase());
+      } else {
+        const errorDetail = result.error || response.statusText || `Request failed with status: ${response.status}`;
+        setError(`${currentTranslations.fetchErrorPrefix}: ${errorDetail}`);
+      }
+    } catch (err: any) {
+      console.error("Fetch Error:", err);
+      const message = err.message || '';
+      let displayError = currentTranslations.fetchGenericError;
+      if (message.includes('Failed to fetch') || message.includes('NetworkError')) {
+          displayError = currentTranslations.fetchNetworkError;
+      } else {
+          displayError = `${currentTranslations.fetchErrorPrefix}: ${message}`;
+      }
+      setError(displayError);
+      setRecommendation(null); 
+    } finally {
+      setIsLoading(false);
+    }
+  }
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+
+    if (['temperature', 'humidity', 'moisture', 'nitrogen', 'potassium', 'phosphorous'].includes(name)) {
+        const sanitizedValue = value.match(/^[0-9]*\.?[0-9]*$/);
+        setFormData(prevData => ({
+            ...prevData,
+            [name]: sanitizedValue ? sanitizedValue[0] : prevData[name as keyof FertilizerFormData]
+        }));
+    } else {
+        setFormData(prevData => ({
+            ...prevData,
+            [name]: value
+        }));
+    }
+  };
+
+  const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newLang = e.target.value as LanguageKey;
+    setLanguage(newLang);
+    if (recognition && isRecording) {
+      recognition.stop();
+    }
+    setError(null);
+    setMicError(null);ion
+  };
+
+  const T = translations[language];
+
+  const renderNumericInput = (name: NumericFieldName, labelKey: keyof typeof T, unitKey: keyof typeof T) => {
+    const label = T[labelKey] || name; 
+    const placeholder = T[unitKey] || '';
+
+    return (
+        <div>
+          <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
+            {label}
+          </label>
+          <div className="flex items-center space-x-2">
+            <input
+              type="text" 
+              inputMode="decimal"
+              id={name}
+              name={name}
+              value={formData[name]}
+              onChange={handleChange}
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              placeholder={placeholder}
+              required
+              disabled={isLoading || isRecording}
+            />
+            {SpeechRecognition && (
+              <button
+                type="button"
+                onClick={() => handleMicClick(name)}
+                className={`p-2 rounded-lg transition ${
+                  recordingField === name
+                    ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse'
+                    : 'bg-gray-200 hover:bg-gray-300 text-gray-600'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                disabled={isLoading || (isRecording && recordingField !== name)}
+                aria-label={`${language === 'te' ? 'రికార్డ్' : 'Record'} ${label}`}
+              >
+                {recordingField === name ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+              </button>
+            )}
+          </div>
+          {recordingField === name && <p className="text-xs text-blue-600 mt-1 animate-pulse">{T.listening}</p>}
+        </div>
+      );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto p-4">
+      <h1 className="text-3xl font-bold text-blue-800 mb-6 text-center">{T.title}</h1>
+      <div className="bg-white rounded-xl shadow-lg p-6">
+
+        <div className="mb-4">
+          <label htmlFor="language-select" className="block text-sm font-medium text-gray-700 mb-1">
+            {T.languageLabel}
+          </label>
+          <select
+            id="language-select"
+            value={language}
+            onChange={handleLanguageChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white disabled:bg-gray-100"
+            disabled={isLoading || isRecording}
+          >
+            <option value="en">English</option>
+            <option value="te">తెలుగు (Telugu)</option>
+          </select>
+        </div>
+
+        {micError && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded-md text-center text-sm text-red-700">
+                {micError}
+            </div>
+        )}
+         {!SpeechRecognition && (
+            <div className="mb-4 p-3 bg-orange-100 border border-orange-300 rounded-md text-center text-sm text-orange-700">
+                {T.micNotSupportedError} {}
+            </div>
+         )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {}
+            <div>
+              <label htmlFor="soilType" className="block text-sm font-medium text-gray-700 mb-1">
+                {T.soilTypeLabel}
+              </label>
+              <select
+                id="soilType"
+                name="soilType"
+                value={formData.soilType}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white disabled:bg-gray-100"
+                required
+                disabled={isLoading || isRecording}
+              >
+                <option value="" disabled>{T.selectSoilTypePlaceholder}</option>
+                {soilTypeOptions.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {language === 'te' ? option.teLabel : option.enLabel}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {}
+            <div>
+              <label htmlFor="cropType" className="block text-sm font-medium text-gray-700 mb-1">
+                {T.cropTypeLabel}
+              </label>
+              <select
+                id="cropType"
+                name="cropType"
+                value={formData.cropType}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white disabled:bg-gray-100"
+                required
+                disabled={isLoading || isRecording}
+              >
+                <option value="" disabled>{T.selectCropTypePlaceholder}</option>
+                {cropTypeOptions.map(option => (
+                 
+                  <option key={option.value} value={option.value}>
+                     {language === 'te' ? option.teLabel : option.enLabel}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {}
+            {renderNumericInput('temperature', 'temperatureLabel', 'temperatureUnit')}
+            {renderNumericInput('humidity', 'humidityLabel', 'humidityUnit')}
+            {renderNumericInput('moisture', 'moistureLabel', 'moistureUnit')}
+            {renderNumericInput('nitrogen', 'nitrogenLabel', 'nitrogenUnit')}
+            {renderNumericInput('potassium', 'potassiumLabel', 'potassiumUnit')}
+            {renderNumericInput('phosphorous', 'phosphorousLabel', 'phosphorousUnit')}
+
+          </div>
+
+          {}
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading || isRecording}
+          >
+            {isLoading ? T.loadingButton : T.submitButton}
+          </button>
+        </form>
+
+        {}
+        {recommendation && !isLoading && !error && (
+          <div className="mt-6 p-4 bg-green-100 border border-green-300 rounded-md text-center">
+            <h3 className="text-lg font-semibold text-green-800 mb-1">{T.recommendationPrefix}:</h3>
+            <p className="text-xl font-medium text-green-700">
+               {}
+               {language === 'te' && T.fertilizerNames && T.fertilizerNames[recommendation]
+                 ? T.fertilizerNames[recommendation] 
+                 : recommendation.charAt(0).toUpperCase() + recommendation.slice(1)
+               }
+            </p>
+          </div>
+        )}
+
+        {}
+        {error && !isLoading && (
+          <div className="mt-6 p-4 bg-red-100 border border-red-300 rounded-md text-center">
+            <h3 className="text-lg font-semibold text-red-800">{T.errorPrefix}:</h3>
+            <p className="text-red-700">{error}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default FertilizerRecommendation;
