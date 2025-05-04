@@ -121,7 +121,7 @@ Google APIs (Translate, Gemini, TTS/STT)
 scikit-learn, Flask, and the Python open-source community
 
 ## Authors
-This collaborative effort is led by a dedicated team of four individuals:
+This collaborative effort is led by a dedicated team of three individuals:
 
 -   **A.Sirisahasra**
 -   **P.Nishitha**
