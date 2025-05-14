@@ -1,128 +1,131 @@
-# 🌾 AgroAssist – AI-Powered Agricultural Assistant
-Welcome to "AgroAssist" project! This repository focuses on devloping a crop recommendation model, fertlizer recommendation model, chatbot tailored for farmers, equipped with features such as speech-to-text , text-to-speech and real-time communication, This project integrates a flask backend and a react frontend, creating an interactive platform for farmers to seek information and assistance.
-## 📌 Overview
-In this repository, you'll find Flask backend(`chatbot.py','crop.py','fertilizer.py`), react frontend(`chatbot.tsx, crop.tsx,fertlizer.tsz`). The frontend offers an intuitive chat interface, supporting two languages and enhancing user interaction.
+# AI-Driven Decision Support System For Sustainable Agriculture And Zero Hunger
 
-### ❗ Problem Statement
-Many farmers lack access to personalized agricultural advice due to limited knowledge, language barriers, or distance from expert support. Incorrect crop selection or fertilizer use can lead to poor yields, soil degradation, and economic loss.
+---
 
-AgroAssist addresses this by:
+## Project Overview
 
-Recommending crops based on soil nutrients and weather.
+The AI-Driven Decision Support System is designed to support farmers by recommending the most suitable crops and fertilizers based on soil parameters and environmental factors. It also features a bilingual chatbot assistant for real-time agricultural guidance.
 
-Suggesting suitable fertilizers tailored to crop and soil needs.
+---
 
-Offering bilingual, voice-enabled chatbot assistance for accessibility.
+## Key Features
 
-### ⚙️ Tech Stack
-##### Frontend:
+- **Crop Recommendation**  
+  Suggests the best crop based on N, P, K, temperature, humidity, pH, and rainfall using a Decision Tree model.
 
-HTML/CSS
+- **Fertilizer Recommendation**  
+  Recommends the ideal fertilizer based on crop type, N, P, K, temperature, humidity, soil moisture, and soil type using a Decision Tree model.
 
-JavaScript 
+- **Bilingual Chatbot**  
+  Provides real-time agricultural query responses in Telugu or English.
 
-React
+---
 
-##### Backend:
+## Prerequisites
 
-Python (Flask)
+Ensure the following packages and tools are installed:
 
-Google Gemini API
+- python3  
+- flask  
+- flask-cors  
+- numpy  
+- scikit-learn  
+- google-generativeai  
+- googletrans  
+- gTTS  
+- node  
+- npm  
 
-gTTS (Text-to-Speech)
+---
 
-SpeechRecognition (Speech-to-Text)
+## How to Run
 
-Google Translate API
+This repository contains:
 
-Machine Learning:
+- Flask backend: `chatbot.py`, `crop.py`, `fertilizer.py`
+- React frontend: `ChatBot.tsx`, `CropRecommendation.tsx`, `FertlizerRecommendation.tsx`
 
-Scikit-learn (Decision Tree for crop prediction)
+The frontend offers an intuitive interface and supports two languages.
 
-Rule-based and ML model for fertilizer recommendation
+### Usage (in VS Code or terminal)
 
-Data Handling:
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/VarshiniMallidi/Agro_Assist.git
+2. Navigate to the project directory
+   ```bash
+   cd Agro_Assist
+3. Set up Python environment and install dependencies
+4. Add your Gemini API key
+Edit backend/chatbot.py and add your Gemini API key where required.
 
-Pandas
+5. Run Flask backends
+Open three terminals:
+    ```bash
+       python backend/chatbot.py
+       python backend/crop.py
+       python backend/fertilizer.py
+6. Install npm
+     ```bash
+        npm install
+7. Rub the React frontend
+     ```bash
+        npm run dev
+8. Access the application
+   Open your browser and go to:
+   http://localhost:5173/
 
-NumPy
-
-## 📥 Installation
-#### 🔧 Prerequisites
- - Python 3.8 or later
- - Flask
- - React
- - Googletrans(for language translation)
- - gTTS(for voice recognition)
- - npm
- - pip
-
-
-## ▶️ Usage
-
-1.  Clone this repository:
-
-```bash
-git clone https://github.com/your-username/Farmer-Support-ChatBot.git
+## Project Structure
+```text
+Agro_Assist/
+├── backend/
+│   ├── chatbot.py
+│   ├── crop.py
+│   ├── fertilizer.py
+│   ├── crop_model.pkl
+│   └── fert_model.pkl
+├── src/
+│   └── components/
+│       ├── ChatBot.tsx
+│       ├── CropRecommendation.tsx
+│       ├── FertilizerRecommendation.tsx
+│       ├── Home.tsx
+│       └── Navbar.tsx
+├── colab/
+│   ├── crop.ipynb
+│   └── fertilizer.ipynb
+├── datasets/
+│   ├── Crop_recommendation.csv
+│   └── Fertilizer Prediction.csv
 ```
 
-2.  Navigate to the project directory:
 
-```bash
-cd Agro_Assist
-```
+## Usage Guide
 
-3.  Run the Flask backend of chatbot:
+### Crop Recommendation
+- **Input**: N, P, K values, temperature, humidity, pH level, rainfall  
+- **Output**: Recommended crop
 
-```bash
-python backend/chatbot.py
-```
+### Fertilizer Recommendation
+- **Input**: Crop name, NPK values, soil type, temperature, humidity, soil moisture  
+- **Output**: Recommended fertilizer
 
-4. Run the Flask backend of crop recommendation:
-   
-```bash
-python backend/chatbot.py
-```
+### Chatbot
+- **Input**: Any agriculture-related question  
+- **Output**: AI-generated response (in Telugu or English)
 
-5. Run the Flask backend of fertlizer recommendation:
-   
-```bash
-python backend/chatbot.py
-```
-  
-6.  Run the React frontend:
+---
 
-```bash
-npm run dev
-```
+## Contributors
 
-7.Open your  browser and access `http://127.0.0.1:5000/` to interact with AgroAssist
+**Team:**
 
-## ✨ Features
-🌾 Crop Recommendation: Suggests the best crop based on N, P, K, temperature, humidity, pH, and rainfall.
 
-🧪 Fertilizer Recommendation: Identifies nutrient deficiencies and recommends ideal fertilizers.
+- [A. Sirisahasra](https://github.com/Sirisahasra-Annamaneni) 
+- [P. Nishitha](https://github.com/Nishitha-25)   
+- [M. Varshini](https://github.com/VarshiniMallidi)
 
-🌍 Bilingual Chatbot: Supports two languages via Google Translate API.
 
-## 📊 Datasets
-crop_recommendation.csv: Contains NPK, environmental factors, and corresponding crops.
 
-fertilizer_recommendation.csv: Maps crop and nutrient data to fertilizer advice.
 
-## 📜 License
-This project is licensed under the MIT License.
 
-## 🙏 Acknowledgments
-Kaggle for open datasets
-
-Google APIs (Translate, Gemini, TTS/STT)
-
-scikit-learn, Flask, and the Python open-source community
-
-## Authors
-This collaborative effort is led by a dedicated team of three individuals:
-
--   **A.Sirisahasra**
--   **P.Nishitha**
--   **M.Varshini**
